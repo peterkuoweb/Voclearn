@@ -140,15 +140,13 @@ function renderLearnTab(container) {
 
     // Header
     const header = dom.create('div', 'profile-header');
-    header.innerHTML = `<h2>Lesson Plan</h2><p>Book: ${getBookTitle(currentBookId)}</p>`;
+    header.innerHTML = `<h2>Voyage Map</h2><p>${getBookTitle(currentBookId)}</p>`;
     container.appendChild(header);
 
     // SRS Check Button (Review)
     const dueWords = dataManager.getDueReviewWords();
     if (dueWords.length > 0) {
-        const srsBtn = dom.create('div', 'btn mt-20', `Review Due Words (${dueWords.length})`);
-        srsBtn.style.background = '#FF5722';
-        srsBtn.style.color = 'white';
+        const srsBtn = dom.create('div', 'btn btn-orange mt-20', `Review Due Words (${dueWords.length})`);
         srsBtn.style.width = '80%';
         srsBtn.style.margin = '20px auto';
         srsBtn.style.display = 'block';
@@ -156,17 +154,31 @@ function renderLearnTab(container) {
         container.appendChild(srsBtn);
     }
 
-    // Lesson Grid
-    const grid = dom.create('div', 'lesson-list');
-    grid.style.padding = '20px';
+    // Lesson Map (Voyage Path)
+    const mapContainer = dom.create('div', 'voyage-map');
+    const pathLine = dom.create('div', 'path-line');
+    mapContainer.appendChild(pathLine);
 
-    lessons.forEach(lesson => {
+    lessons.forEach((lesson, index) => {
         const node = dom.create('div', `lesson-node ${lesson.status}`, lesson.id);
+
+        // Stagger nodes slightly
+        if (index % 2 === 0) node.style.transform = "translateX(-20px)";
+        else node.style.transform = "translateX(20px)";
+
+        // Lock/Unlock logic (visual only for now based on status)
+        if (lesson.status === 'completed') {
+            node.innerHTML = '✔';
+        } else if (lesson.status === 'in-progress') {
+            node.style.borderColor = 'var(--sunset-orange)';
+            node.style.color = 'var(--sunset-orange)';
+        }
+
         node.onclick = () => showLessonDetail(lesson);
-        grid.appendChild(node);
+        mapContainer.appendChild(node);
     });
 
-    container.appendChild(grid);
+    container.appendChild(mapContainer);
 }
 
 function renderMaterialsTab(container) {
@@ -174,40 +186,40 @@ function renderMaterialsTab(container) {
 
     container.innerHTML = '<h2 style="padding:20px;">Book Shelf</h2>';
 
-    // GEPT
-    const row1 = dom.create('div', 'shelf-row');
-    shelf.geptBooks.forEach(book => {
-        const bookEl = createBookEl(book);
-        row1.appendChild(bookEl);
-    });
-    container.appendChild(dom.create('h3', '', 'GEPT Series'));
-    container.appendChild(row1);
+    const shelfGrid = dom.create('div', 'shelf-container');
 
-    // Custom
-    const row2 = dom.create('div', 'shelf-row');
+    // GEPT Section
+    shelfGrid.appendChild(dom.create('h3', '', 'GEPT Series'));
+    const grid1 = dom.create('div', 'shelf-grid');
+    shelf.geptBooks.forEach(book => {
+        grid1.appendChild(createBookEl(book));
+    });
+    shelfGrid.appendChild(grid1);
+
+    // Custom Section
+    shelfGrid.appendChild(dom.create('h3', '', 'Custom / Other'));
+    const grid2 = dom.create('div', 'shelf-grid');
     shelf.customBooks.forEach(book => {
-        const bookEl = createBookEl(book);
-        row2.appendChild(bookEl);
+        grid2.appendChild(createBookEl(book));
     });
 
     // Add Book Button
-    const addBtn = dom.create('div', 'book');
-    addBtn.style.background = '#37474f';
-    addBtn.style.color = '#fff';
-    addBtn.innerHTML = '<span>+ Add<br>Material</span>';
+    const addBtn = dom.create('div', 'book-3d');
+    addBtn.style.background = '#334155';
+    addBtn.innerHTML = '<span style="font-size:30px;">+</span><span>Add Material</span>';
     addBtn.onclick = showAddMaterialUI;
-    row2.appendChild(addBtn);
+    grid2.appendChild(addBtn);
 
-    container.appendChild(dom.create('h3', '', 'Custom / Other'));
-    container.appendChild(row2);
+    shelfGrid.appendChild(grid2);
+    container.appendChild(shelfGrid);
 }
 
 function createBookEl(book) {
-    const el = dom.create('div', 'book', book.title);
-    el.style.backgroundColor = book.color || '#fff8e1';
-
-    // Only user created books are deletable, but for simplicity here we just focus on selection
-    if (book.isUserCreated) el.style.color = 'white';
+    const el = dom.create('div', 'book-3d', book.title);
+    // Custom colors based on book.color if available, else default gradient
+    if (book.color) {
+        el.style.background = `linear-gradient(135deg, ${book.color}, #333)`;
+    }
 
     el.onclick = () => {
         if (confirm(`Select "${book.title}" as your current book?`)) {
@@ -229,7 +241,7 @@ function renderProfileTab(container) {
     header.innerHTML = `
         <h1>${user.nickname}</h1>
         <p>${user.email}</p>
-        <p>Points: ${user.points || 0}</p>
+        <p style="color:var(--sunset-orange); font-weight:bold;">Points: ${user.points || 0}</p>
     `;
     container.appendChild(header);
 
@@ -237,29 +249,24 @@ function renderProfileTab(container) {
     content.style.padding = '20px';
 
     // Stats
-    const stats = dom.create('div', 'stat-card');
+    const stats = dom.create('div', 'glass-card');
     const learnedCount = Object.values(user.progress || {}).filter(p => p.status === 'green').length;
     stats.innerHTML = `<h3>Statistics</h3><p>Total Learned: ${learnedCount}</p>`;
     content.appendChild(stats);
 
     // Settings
-    const settings = dom.create('div', 'stat-card');
+    const settings = dom.create('div', 'glass-card');
+    settings.style.marginTop = '20px';
     settings.innerHTML = `
         <h3>Settings</h3>
-        <label><input type="checkbox" checked> Sound Effects</label><br><br>
-        <label>Speech Rate: <input type="range" min="0.5" max="1.5" step="0.1" value="1.0" onchange="window.speechRate=this.value"></label><br><br>
-        <button class="btn" style="background:#999" id="logout-btn">Logout</button>
-        <br><br>
-        <a href="mailto:mail@peterkuo.run.place">Contact Us</a>
+        <label style="display:block; margin-bottom:10px;"><input type="checkbox" checked> Sound Effects</label>
+        <label style="display:block; margin-bottom:20px;">Speech Rate: <input type="range" min="0.5" max="1.5" step="0.1" value="1.0" onchange="window.speechRate=this.value"></label>
+        <button class="btn btn-glass w-100" id="logout-btn">Logout</button>
+        <div style="margin-top:20px; text-align:center;">
+            <a href="mailto:mail@peterkuo.run.place" style="color:var(--neon-blue);">Contact Us</a>
+        </div>
     `;
     content.appendChild(settings);
-
-    // Word List Button
-    const listBtn = dom.create('button', 'btn w-100 mt-20', 'View All Words');
-    listBtn.onclick = () => {
-        alert("This feature would show a huge list. Implementing pagination later.");
-    };
-    content.appendChild(listBtn);
 
     container.appendChild(content);
 
@@ -288,7 +295,6 @@ function startLesson(words, isReview) {
         view.classList.remove('active');
         if (results) {
             // Update progress
-            // results is map of word -> rating
             Object.keys(results).forEach(word => {
                 dataManager.updateWordProgress(word, results[word]);
             });
@@ -332,6 +338,10 @@ function setupCustomBookModal() {
     const saveBtn = document.getElementById('cb-save');
     const cancelBtn = document.getElementById('cb-cancel');
 
+    // Update modal class to match new CSS
+    const modalContent = modal.querySelector('.modal-content');
+    if (modalContent) modalContent.className = 'modal-card'; // replace class
+
     cancelBtn.onclick = () => {
         modal.classList.remove('open');
         customBookState.selectedWords = [];
@@ -368,15 +378,13 @@ function setupCustomBookModal() {
             .slice(0, 10); // Limit results
 
         matches.forEach(w => {
-            const div = dom.create('div', '', w.word);
-            div.style.padding = '8px';
-            div.style.background = 'rgba(255,255,255,0.05)';
-            div.style.display = 'flex';
-            div.style.justifyContent = 'space-between';
-            div.style.alignItems = 'center';
+            const div = dom.create('div', 'search-result-item', '');
             div.innerHTML = `
-                <span>${w.word} <small style="color:#888">(${w.definition_zh.substr(0, 10)}...)</small></span>
-                <button class="btn" style="padding:4px 10px; font-size:12px;">Add</button>
+                <div style="flex:1;">
+                    <div style="font-weight:bold; color:var(--text-white);">${w.word}</div>
+                    <div style="font-size:0.8rem; color:var(--text-muted);">${w.definition_zh.substr(0, 15)}...</div>
+                </div>
+                <button class="btn btn-glass" style="padding:5px 12px; font-size:0.8rem;">Add</button>
             `;
 
             div.querySelector('button').onclick = () => {
@@ -395,13 +403,16 @@ function setupCustomBookModal() {
 
         customBookState.selectedWords.forEach(word => {
             const tag = dom.create('div', '', word);
-            tag.style.background = 'var(--primary-color)';
-            tag.style.color = '#000';
-            tag.style.padding = '4px 8px';
+            tag.style.background = 'var(--neon-blue)';
+            tag.style.color = '#fff';
+            tag.style.padding = '4px 10px';
             tag.style.borderRadius = '12px';
             tag.style.fontSize = '12px';
             tag.style.display = 'inline-block';
             tag.style.cursor = 'pointer';
+            tag.style.marginRight = '5px';
+            tag.style.marginBottom = '5px';
+
             tag.onclick = () => {
                 customBookState.selectedWords = customBookState.selectedWords.filter(x => x !== word);
                 updateSelectedUI();

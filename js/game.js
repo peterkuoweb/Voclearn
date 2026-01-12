@@ -8,21 +8,9 @@ export class Game {
         this.isReviewMode = isReviewMode;
 
         this.phases = ['flashcards', 'sentence', 'matching', 'spelling', 'review'];
-        if (this.isReviewMode) {
-            // SRS Review might skip straight to testing? Or full cycle?
-            // Prompt says: "Lesson starts with flashcards...". SRS review usually is just testing.
-            // But prompt says "Course completion same flow".
-            // Let's stick to the full flow for now as per "Red/Yellow/Green review also triggers flow".
-            // Actually, prompt says: "Before lesson... review... user can skip... red/yellow logic".
-            // Let's keep it simple: Standard flow for now.
-        }
-
         this.currentPhaseIndex = 0;
         this.currentWordIndex = 0;
-
         this.results = {}; // word -> rating (green/yellow/red)
-
-        // Redo queue for "Red" rated words at the end
         this.redoQueue = [];
     }
 
@@ -32,15 +20,35 @@ export class Game {
         this.runPhase();
     }
 
+    renderProgressBar() {
+        // Calculate total progress
+        // Total steps = phases * words? Or just words in current phase?
+        // Let's do a simple progress bar for current phase
+        const progress = (this.currentWordIndex / this.words.length) * 100;
+
+        const header = dom.create('div', 'game-header');
+        header.innerHTML = `
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+                <span class="btn-glass" style="padding:5px 10px; border-radius:10px; font-size:0.8rem; cursor:pointer;" onclick="location.reload()">×</span>
+                <span style="font-weight:bold; color:var(--sunset-orange);">Level 1</span>
+                <span>${this.currentWordIndex + 1} / ${this.words.length}</span>
+            </div>
+            <div class="progress-track">
+                <div class="progress-fill" style="width:${progress}%">
+                    <div class="ship-marker">⛵</div>
+                </div>
+            </div>
+        `;
+        return header;
+    }
+
     runPhase() {
         if (this.currentPhaseIndex >= this.phases.length) {
-            // All phases done. Check redo queue.
             if (this.redoQueue.length > 0) {
-                // Restart with redo words
                 alert("Reviewing words marked as 'Red'...");
                 this.words = [...this.redoQueue];
                 this.redoQueue = [];
-                this.start(); // Restart flow for these words
+                this.start();
             } else {
                 this.onComplete(this.results);
             }
@@ -48,14 +56,22 @@ export class Game {
         }
 
         const phase = this.phases[this.currentPhaseIndex];
-        this.container.innerHTML = ''; // Clear view
+        this.container.innerHTML = '';
 
-        // Render phase UI
-        if (phase === 'flashcards') this.renderFlashcards();
-        else if (phase === 'sentence') this.renderSentenceBuilder();
-        else if (phase === 'matching') this.renderMatching();
-        else if (phase === 'spelling') this.renderSpelling();
-        else if (phase === 'review') this.renderSelfCheck();
+        // Add progress bar (except for maybe intro?)
+        this.container.appendChild(this.renderProgressBar());
+
+        const contentWrapper = dom.create('div', 'w-100 h-100');
+        contentWrapper.style.paddingTop = "80px"; // Space for header
+        contentWrapper.style.display = "flex";
+        contentWrapper.style.flexDirection = "column";
+        this.container.appendChild(contentWrapper);
+
+        if (phase === 'flashcards') this.renderFlashcards(contentWrapper);
+        else if (phase === 'sentence') this.renderSentenceBuilder(contentWrapper);
+        else if (phase === 'matching') this.renderMatching(contentWrapper);
+        else if (phase === 'spelling') this.renderSpelling(contentWrapper);
+        else if (phase === 'review') this.renderSelfCheck(contentWrapper);
     }
 
     nextPhase() {
@@ -65,7 +81,7 @@ export class Game {
     }
 
     // --- Phase 1: Flashcards ---
-    renderFlashcards() {
+    renderFlashcards(wrapper) {
         if (this.currentWordIndex >= this.words.length) {
             this.nextPhase();
             return;
@@ -73,119 +89,148 @@ export class Game {
 
         const word = this.words[this.currentWordIndex];
 
-        const wrapper = dom.create('div', 'w-100 h-100');
-        wrapper.innerHTML = `
-            <div class="learning-header">
-                <span>Flashcards (${this.currentWordIndex + 1}/${this.words.length})</span>
-                <button class="btn" id="next-fc">Next</button>
-            </div>
-            <div class="card-container">
-                <div class="flashcard" id="flashcard">
-                    <div class="card-face card-front">
-                        <h1>${word.word}</h1>
-                        <p style="color:#999; font-size:0.8rem;">Tap to Flip</p>
+        const cardWrapper = dom.create('div', 'flashcard-wrapper');
+        cardWrapper.innerHTML = `
+            <div class="flashcard" id="flashcard">
+                <div class="card-face card-front">
+                    <div class="card-hero">
+                        <i style="font-size:1.5rem; color:rgba(255,255,255,0.7)">🔊</i>
                     </div>
-                    <div class="card-face card-back">
-                        <h3>${word.word}</h3>
-                        <p>${word.part_of_speech}</p>
-                        <p style="color:var(--primary-color)">${word.definition_zh}</p>
-                        <button class="btn" id="play-audio">🔊 Play</button>
+                    <div class="card-content">
+                        <div style="color:var(--sunset-orange); font-size:0.8rem; margin-bottom:10px; letter-spacing:2px;">WORD OF THE DAY</div>
+                        <div class="word-title">${word.word}</div>
+                        <div class="pronunciation">/${word.word.toLowerCase()}/</div>
+                        <p style="margin-top:20px; font-size:0.9rem; color:#8892b0; max-width:80%;">
+                            Think of sailing across the ocean...
+                        </p>
                     </div>
+                </div>
+                <div class="card-face card-back">
+                    <h3 style="font-size:2rem; margin-bottom:10px;">${word.word}</h3>
+                    <p style="color:var(--sunset-orange); font-style:italic;">${word.part_of_speech}</p>
+                    <p style="font-size:1.2rem; margin-top:20px;">${word.definition_zh}</p>
+                    <button class="btn btn-glass mt-20" id="play-audio-back">🔊 Play Audio</button>
                 </div>
             </div>
         `;
-        this.container.appendChild(wrapper);
 
-        const card = wrapper.querySelector('#flashcard');
-        card.onclick = (e) => {
-            if (e.target.tagName !== 'BUTTON') {
-                card.classList.toggle('flipped');
-            }
-        };
+        const btnContainer = dom.create('div', 'w-100 flex-row mt-20');
+        btnContainer.innerHTML = `
+            <button class="btn btn-glass" style="width:50px;" id="prev-fc">←</button>
+            <button class="btn" style="flex:1;" id="flip-btn">Flip Card</button>
+            <button class="btn btn-glass" style="width:50px;" id="next-fc">→</button>
+        `;
 
-        wrapper.querySelector('#play-audio').onclick = () => {
+        wrapper.appendChild(cardWrapper);
+        wrapper.appendChild(btnContainer);
+
+        const card = cardWrapper.querySelector('#flashcard');
+        const flipBtn = btnContainer.querySelector('#flip-btn');
+
+        // Hero Audio Icon
+        cardWrapper.querySelector('.card-hero').onclick = (e) => {
+            e.stopPropagation();
             tts.playAudio(word.word);
         };
 
-        wrapper.querySelector('#next-fc').onclick = () => {
-            this.currentWordIndex++;
-            this.renderFlashcards();
+        // Back Audio Button
+        cardWrapper.querySelector('#play-audio-back').onclick = (e) => {
+            e.stopPropagation();
+            tts.playAudio(word.word);
         };
+
+        flipBtn.onclick = () => card.classList.toggle('flipped');
+        card.onclick = () => card.classList.toggle('flipped');
+
+        btnContainer.querySelector('#next-fc').onclick = () => {
+            this.currentWordIndex++;
+            this.runPhase(); // re-render
+        };
+
+        // Auto play on show?
+        // tts.playAudio(word.word);
     }
 
     // --- Phase 2: Sentence Builder ---
-    renderSentenceBuilder() {
-        // "Example sentence Chinese shown, drag English words to order"
+    renderSentenceBuilder(wrapper) {
         if (this.currentWordIndex >= this.words.length) {
             this.nextPhase();
             return;
         }
 
         const wordData = this.words[this.currentWordIndex];
-        // Clean sentence: remove punctuation for splitting, but keep for display?
-        // Simplification: Split by space.
-        // If no example, skip.
         if (!wordData.example_en) {
             this.currentWordIndex++;
-            this.renderSentenceBuilder();
+            this.runPhase();
             return;
         }
 
         const sentenceParts = wordData.example_en.split(' ');
         const shuffledParts = dom.shuffle([...sentenceParts]);
 
-        const wrapper = dom.create('div', 'w-100 h-100');
         wrapper.innerHTML = `
-            <div class="learning-header">
-                <span>Sentence (${this.currentWordIndex + 1}/${this.words.length})</span>
+            <div style="flex:1; display:flex; flex-direction:column; justify-content:center; padding:20px; text-align:center;">
+                <div style="color:var(--sunset-orange); margin-bottom:10px;">⚠️ TRANSLATE THIS</div>
+                <h2 style="font-size:1.8rem; margin-bottom:30px;">${wordData.example_zh}</h2>
+
+                <div class="sentence-zone" id="drop-zone">
+                    <span style="color:rgba(255,255,255,0.2); pointer-events:none;">Tap words below to build</span>
+                </div>
+
+                <div class="sentence-zone" id="drag-source" style="border:none; background:transparent;"></div>
             </div>
-            <div style="padding:20px; text-align:center;">
-                <h3>${wordData.example_zh}</h3>
+            <div style="padding:20px;">
+                <button class="btn btn-orange w-100" id="check-ans">Check Answer</button>
             </div>
-            <div class="sentence-area" id="drop-zone"></div>
-            <div class="word-bank" id="drag-source"></div>
         `;
-        this.container.appendChild(wrapper);
 
         const dropZone = wrapper.querySelector('#drop-zone');
         const dragSource = wrapper.querySelector('#drag-source');
+        const checkBtn = wrapper.querySelector('#check-ans');
 
-        shuffledParts.forEach((txt, idx) => {
-            const el = dom.create('div', 'draggable-word', txt);
+        // Helper to update empty state text
+        const updateDropZoneText = () => {
+            const hasChildren = [...dropZone.children].some(c => c.classList.contains('pill-word'));
+            const placeholder = dropZone.querySelector('span');
+            if (placeholder) placeholder.style.display = hasChildren ? 'none' : 'block';
+        };
+
+        shuffledParts.forEach((txt) => {
+            const el = dom.create('div', 'pill-word', txt);
             el.dataset.txt = txt;
-
             el.onclick = () => {
-                // Toggle between source and drop
-                if (el.parentNode === dragSource) {
-                    dropZone.appendChild(el);
-                } else {
-                    dragSource.appendChild(el);
-                }
-                checkSentence();
+                if (el.parentNode === dragSource) dropZone.appendChild(el);
+                else dragSource.appendChild(el);
+                updateDropZoneText();
             };
             dragSource.appendChild(el);
         });
 
-        const checkSentence = () => {
-            const currentSentence = [...dropZone.children].map(el => el.dataset.txt).join(' ');
-            // Simple check (case sensitive? punctuation? simplified for now)
-            // Ideally we strip punctuation for comparison
+        checkBtn.onclick = () => {
+            const currentSentence = [...dropZone.querySelectorAll('.pill-word')].map(el => el.dataset.txt).join(' ');
             const target = wordData.example_en.replace(/[.,\/#!$%\^&\*;:{}=\-_`~()]/g,"");
             const current = currentSentence.replace(/[.,\/#!$%\^&\*;:{}=\-_`~()]/g,"");
 
             if (current === target) {
-                // Correct!
-                dropZone.style.borderColor = 'green';
+                checkBtn.textContent = "Correct! ✔";
+                checkBtn.classList.replace('btn-orange', 'btn-green');
                 setTimeout(() => {
                     this.currentWordIndex++;
-                    this.renderSentenceBuilder();
+                    this.runPhase();
+                }, 1000);
+            } else {
+                checkBtn.textContent = "Try Again ❌";
+                checkBtn.classList.replace('btn-orange', 'btn-red');
+                setTimeout(() => {
+                    checkBtn.textContent = "Check Answer";
+                    checkBtn.classList.replace('btn-red', 'btn-orange');
                 }, 1000);
             }
         };
     }
 
     // --- Phase 3: Matching ---
-    renderMatching() {
+    renderMatching(wrapper) {
         if (this.currentWordIndex >= this.words.length) {
             this.nextPhase();
             return;
@@ -193,61 +238,51 @@ export class Game {
 
         const wordData = this.words[this.currentWordIndex];
 
-        // Get 2 distractors from current lesson words or random
         let options = [wordData];
         const distractors = this.words.filter(w => w !== wordData);
-        // If not enough words in lesson, pick matching phase might be buggy if lesson size < 3.
-        // Assuming lesson size >= 3 usually. If not, maybe skip or dupe?
         if (distractors.length >= 2) {
-             const selected = dom.shuffle(distractors).slice(0, 2);
-             options.push(...selected);
+             options.push(...dom.shuffle(distractors).slice(0, 2));
         } else {
-             // Just repeat to avoid crash
              options.push(...distractors);
         }
-
         options = dom.shuffle(options);
 
-        const wrapper = dom.create('div', 'w-100 h-100');
         wrapper.innerHTML = `
-            <div class="learning-header">
-                <span>Matching (${this.currentWordIndex + 1}/${this.words.length})</span>
-            </div>
-            <div style="padding:40px; text-align:center;">
-                <h1>${wordData.word}</h1>
-            </div>
-            <div class="word-bank" style="flex-direction:column">
+            <div style="flex:1; display:flex; flex-direction:column; justify-content:center; align-items:center;">
+                <div class="ripple-btn" style="width:150px; height:150px; font-size:2rem; animation:none; box-shadow:0 0 30px rgba(46,154,254,0.3); margin-bottom:40px;">
+                    ${wordData.word}
+                </div>
+                <div style="width:90%; max-width:350px; display:flex; flex-direction:column; gap:15px;" id="options-container">
+                </div>
             </div>
         `;
 
-        const bank = wrapper.querySelector('.word-bank');
+        const container = wrapper.querySelector('#options-container');
         options.forEach(opt => {
-            const btn = dom.create('button', 'btn w-100 mt-20', opt.definition_zh);
-            btn.style.background = 'white';
-            btn.style.border = '1px solid #ccc';
+            const btn = dom.create('button', 'btn btn-glass w-100', opt.definition_zh);
+            btn.style.textAlign = 'left';
+            btn.style.padding = "20px";
+            btn.style.borderRadius = "16px";
 
             btn.onclick = () => {
                 if (opt === wordData) {
-                    btn.style.background = '#4CAF50';
-                    btn.style.color = 'white';
+                    btn.style.background = 'var(--success)';
+                    btn.style.borderColor = 'var(--success)';
                     setTimeout(() => {
                         this.currentWordIndex++;
-                        this.renderMatching();
+                        this.runPhase();
                     }, 500);
                 } else {
-                    btn.style.background = '#F44336';
-                    btn.style.color = 'white';
-                    // Shake?
+                    btn.style.background = 'var(--error)';
+                    btn.style.borderColor = 'var(--error)';
                 }
             };
-            bank.appendChild(btn);
+            container.appendChild(btn);
         });
-
-        this.container.appendChild(wrapper);
     }
 
     // --- Phase 4: Spelling (Listening) ---
-    renderSpelling() {
+    renderSpelling(wrapper) {
         if (this.currentWordIndex >= this.words.length) {
             this.nextPhase();
             return;
@@ -255,25 +290,20 @@ export class Game {
 
         const wordData = this.words[this.currentWordIndex];
 
-        const wrapper = dom.create('div', 'w-100 h-100');
         wrapper.innerHTML = `
-            <div class="learning-header">
-                <span>Spelling (${this.currentWordIndex + 1}/${this.words.length})</span>
-                <button class="btn" id="skip-btn" style="background:#999">Skip</button>
-            </div>
-            <div style="padding:40px; text-align:center;">
-                <button class="btn" id="play-spelling">🔊 Play Sound</button>
-                <div class="mt-20">
-                    <input type="text" id="spelling-input" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"
-                        style="font-size:1.5rem; padding:10px; width:80%; text-align:center;" />
-                </div>
-                <div id="feedback" class="mt-20"></div>
-            </div>
-            <!-- Keyboard spacer for mobile -->
-            <div style="height:200px"></div>
-        `;
+            <div class="listening-container">
+                <div class="ripple-btn" id="play-ripple">🔊</div>
+                <p style="margin-top:20px;">Tap to play</p>
 
-        this.container.appendChild(wrapper);
+                <input type="text" id="spelling-input" class="input-field"
+                    placeholder="Type what you hear..."
+                    style="margin-top:40px; width:80%; font-size:1.5rem;"
+                    autocomplete="off">
+            </div>
+            <div style="padding:20px; display:flex; justify-content:flex-end;">
+                <button class="btn btn-glass" id="skip-btn" style="padding:10px 20px;">Skip</button>
+            </div>
+        `;
 
         const input = wrapper.querySelector('#spelling-input');
         input.focus();
@@ -281,30 +311,30 @@ export class Game {
         // Auto play
         tts.playAudio(wordData.word);
 
-        wrapper.querySelector('#play-spelling').onclick = () => tts.playAudio(wordData.word);
-
-        const check = () => {
-            const val = input.value.trim().toLowerCase();
-            if (val === wordData.word.toLowerCase()) {
-                wrapper.querySelector('#feedback').textContent = "Correct!";
-                wrapper.querySelector('#feedback').style.color = 'green';
-                setTimeout(() => {
-                    this.currentWordIndex++;
-                    this.renderSpelling();
-                }, 800);
-            }
+        wrapper.querySelector('#play-ripple').onclick = () => {
+            tts.playAudio(wordData.word);
         };
 
-        input.addEventListener('input', check);
+        input.addEventListener('input', () => {
+            const val = input.value.trim().toLowerCase();
+            if (val === wordData.word.toLowerCase()) {
+                input.style.borderColor = 'var(--success)';
+                input.style.color = 'var(--success)';
+                setTimeout(() => {
+                    this.currentWordIndex++;
+                    this.runPhase();
+                }, 800);
+            }
+        });
 
         wrapper.querySelector('#skip-btn').onclick = () => {
             this.currentWordIndex++;
-            this.renderSpelling();
+            this.runPhase();
         };
     }
 
     // --- Phase 5: Self Check (Review) ---
-    renderSelfCheck() {
+    renderSelfCheck(wrapper) {
         if (this.currentWordIndex >= this.words.length) {
             this.nextPhase();
             return;
@@ -312,51 +342,47 @@ export class Game {
 
         const wordData = this.words[this.currentWordIndex];
 
-        const wrapper = dom.create('div', 'w-100 h-100');
         wrapper.innerHTML = `
-            <div class="learning-header">
-                <span>Final Review (${this.currentWordIndex + 1}/${this.words.length})</span>
-            </div>
             <div style="flex:1; display:flex; flex-direction:column; justify-content:center; align-items:center; text-align:center; padding:20px;">
-                <h1>${wordData.word}</h1>
-                <div id="review-details" class="hidden">
-                    <p>${wordData.definition_zh}</p>
-                    <p>${wordData.example_en}</p>
-                </div>
-                <button class="btn mt-20" id="show-ans">Show Details</button>
+                <div class="glass-card" style="width:100%; max-width:350px; min-height:300px; display:flex; flex-direction:column; justify-content:center; align-items:center;">
+                    <h1 style="margin-bottom:10px;">${wordData.word}</h1>
+                    <div class="pronunciation" style="margin-bottom:30px;">/${wordData.word.toLowerCase()}/</div>
 
-                <div class="review-actions hidden" id="actions">
-                    <button class="circle-btn btn-green" data-rating="green">Easy</button>
-                    <button class="circle-btn btn-yellow" data-rating="yellow">Ok</button>
-                    <button class="circle-btn btn-red" data-rating="red">Hard</button>
+                    <div id="review-content" style="opacity:0; transition:opacity 0.3s; display:none;">
+                        <h3 style="color:var(--text-white);">${wordData.definition_zh}</h3>
+                        <p style="margin-top:10px; font-style:italic;">${wordData.example_en || ''}</p>
+                    </div>
+
+                    <button class="btn mt-20" id="show-ans">Show Details</button>
+                </div>
+
+                <div class="review-actions hidden" id="actions" style="margin-top:30px;">
+                    <button class="circle-btn btn-red" data-rating="red" style="width:70px; height:70px;">✖</button>
+                    <button class="circle-btn btn-yellow" data-rating="yellow" style="width:70px; height:70px;">?</button>
+                    <button class="circle-btn btn-green" data-rating="green" style="width:70px; height:70px;">✔</button>
                 </div>
             </div>
         `;
-        this.container.appendChild(wrapper);
 
         const showBtn = wrapper.querySelector('#show-ans');
-        const details = wrapper.querySelector('#review-details');
+        const content = wrapper.querySelector('#review-content');
         const actions = wrapper.querySelector('#actions');
 
         showBtn.onclick = () => {
-            details.classList.remove('hidden');
+            content.style.display = 'block';
+            setTimeout(() => content.style.opacity = 1, 10);
             actions.classList.remove('hidden');
-            actions.style.display = 'flex'; // override
+            actions.style.display = 'flex';
             showBtn.style.display = 'none';
         };
 
         const handleRating = (rating) => {
             this.results[wordData.word] = rating;
-
             if (rating === 'red') {
-                // Add to redo queue if not already there
-                if (!this.redoQueue.includes(wordData)) {
-                    this.redoQueue.push(wordData);
-                }
+                if (!this.redoQueue.includes(wordData)) this.redoQueue.push(wordData);
             }
-
             this.currentWordIndex++;
-            this.renderSelfCheck();
+            this.runPhase();
         };
 
         actions.querySelectorAll('button').forEach(btn => {
