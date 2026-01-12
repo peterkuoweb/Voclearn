@@ -60,6 +60,29 @@
             <!-- Game Content -->
         </div>
 
+        <!-- Custom Book Modal -->
+        <div id="custom-book-modal" class="modal-overlay">
+            <div class="modal-content">
+                <div class="modal-header">Add Custom Material</div>
+                <div class="modal-body">
+                    <input type="text" id="cb-title" class="nickname-input" placeholder="Book Title" style="text-align:left;">
+                    <input type="text" id="cb-search" class="nickname-input" placeholder="Search Word (e.g., apple)" style="text-align:left;">
+
+                    <div style="font-size:0.9rem; color:var(--text-muted); margin-bottom:5px;">Selected: <span id="cb-count">0</span></div>
+                    <div id="cb-selected-list" style="display:flex; flex-wrap:wrap; gap:5px; margin-bottom:15px; min-height:40px; background:rgba(0,0,0,0.2); padding:5px; border-radius:5px;"></div>
+
+                    <div style="font-size:0.9rem; color:var(--text-muted); margin-bottom:5px;">Search Results:</div>
+                    <div id="cb-results-list" style="display:flex; flex-direction:column; gap:8px;"></div>
+
+                    <button class="btn w-100 mt-20" style="background:#444; font-size:0.8rem;" onclick="window.open('https://forms.gle/Le9oskkQBiupqwET7', '_blank')">Report Missing Word</button>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-red" id="cb-cancel">Cancel</button>
+                    <button class="btn btn-green" id="cb-save">Save</button>
+                </div>
+            </div>
+        </div>
+
     </div>
 
     <script type="module" src="js/app.js"></script>

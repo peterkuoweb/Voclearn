@@ -29,6 +29,7 @@ async function init() {
 
     setupAuthListeners();
     setupNavigation();
+    setupCustomBookModal();
 }
 
 function setupAuthListeners() {
@@ -191,7 +192,8 @@ function renderMaterialsTab(container) {
 
     // Add Book Button
     const addBtn = dom.create('div', 'book');
-    addBtn.style.background = '#ddd';
+    addBtn.style.background = '#37474f';
+    addBtn.style.color = '#fff';
     addBtn.innerHTML = '<span>+ Add<br>Material</span>';
     addBtn.onclick = showAddMaterialUI;
     row2.appendChild(addBtn);
@@ -203,6 +205,8 @@ function renderMaterialsTab(container) {
 function createBookEl(book) {
     const el = dom.create('div', 'book', book.title);
     el.style.backgroundColor = book.color || '#fff8e1';
+
+    // Only user created books are deletable, but for simplicity here we just focus on selection
     if (book.isUserCreated) el.style.color = 'white';
 
     el.onclick = () => {
@@ -268,8 +272,6 @@ function renderProfileTab(container) {
 // --- Dialogs & Overlays ---
 
 function showLessonDetail(lesson) {
-    // Show modal or overlay
-    // Ideally this opens a pre-game screen
     const confirmed = confirm(`Start Lesson ${lesson.id}?\nWords: ${lesson.words.length}`);
     if (confirmed) {
         startLesson(lesson.words, false); // false = not review mode
@@ -315,28 +317,103 @@ function getBookTitle(id) {
     return b ? b.title : id;
 }
 
-function showAddMaterialUI() {
-    const title = prompt("Enter Book Name:");
-    if (!title) return;
+// --- Custom Book Modal Logic ---
 
-    const keyword = prompt("Search for words to add (e.g. 'apple'):");
-    if (!keyword) return;
+let customBookState = {
+    selectedWords: []
+};
 
-    // Search
-    const matches = dataManager.allWords.filter(w => w.word.toLowerCase().includes(keyword.toLowerCase()));
+function setupCustomBookModal() {
+    const modal = document.getElementById('custom-book-modal');
+    const searchInput = document.getElementById('cb-search');
+    const resultsContainer = document.getElementById('cb-results-list');
+    const selectedContainer = document.getElementById('cb-selected-list');
+    const countSpan = document.getElementById('cb-count');
+    const saveBtn = document.getElementById('cb-save');
+    const cancelBtn = document.getElementById('cb-cancel');
 
-    if (matches.length === 0) {
-        const r = confirm("No words found. Report missing word?");
-        if (r) window.open('https://forms.gle/Le9oskkQBiupqwET7', '_blank');
-        return;
+    cancelBtn.onclick = () => {
+        modal.classList.remove('open');
+        customBookState.selectedWords = [];
+        document.getElementById('cb-title').value = '';
+        searchInput.value = '';
+        resultsContainer.innerHTML = '';
+        updateSelectedUI();
+    };
+
+    saveBtn.onclick = () => {
+        const title = document.getElementById('cb-title').value.trim();
+        if (!title) {
+            alert("Please enter a book title.");
+            return;
+        }
+        if (customBookState.selectedWords.length === 0) {
+            alert("Please select at least one word.");
+            return;
+        }
+
+        dataManager.addCustomBook(title, customBookState.selectedWords);
+        alert(`Book "${title}" created!`);
+        modal.classList.remove('open');
+        renderTab('materials');
+    };
+
+    searchInput.addEventListener('input', (e) => {
+        const val = e.target.value.toLowerCase().trim();
+        resultsContainer.innerHTML = '';
+        if (val.length < 2) return;
+
+        const matches = dataManager.allWords
+            .filter(w => w.word.toLowerCase().includes(val))
+            .slice(0, 10); // Limit results
+
+        matches.forEach(w => {
+            const div = dom.create('div', '', w.word);
+            div.style.padding = '8px';
+            div.style.background = 'rgba(255,255,255,0.05)';
+            div.style.display = 'flex';
+            div.style.justifyContent = 'space-between';
+            div.style.alignItems = 'center';
+            div.innerHTML = `
+                <span>${w.word} <small style="color:#888">(${w.definition_zh.substr(0, 10)}...)</small></span>
+                <button class="btn" style="padding:4px 10px; font-size:12px;">Add</button>
+            `;
+
+            div.querySelector('button').onclick = () => {
+                if (!customBookState.selectedWords.includes(w.word)) {
+                    customBookState.selectedWords.push(w.word);
+                    updateSelectedUI();
+                }
+            };
+            resultsContainer.appendChild(div);
+        });
+    });
+
+    function updateSelectedUI() {
+        selectedContainer.innerHTML = '';
+        countSpan.textContent = customBookState.selectedWords.length;
+
+        customBookState.selectedWords.forEach(word => {
+            const tag = dom.create('div', '', word);
+            tag.style.background = 'var(--primary-color)';
+            tag.style.color = '#000';
+            tag.style.padding = '4px 8px';
+            tag.style.borderRadius = '12px';
+            tag.style.fontSize = '12px';
+            tag.style.display = 'inline-block';
+            tag.style.cursor = 'pointer';
+            tag.onclick = () => {
+                customBookState.selectedWords = customBookState.selectedWords.filter(x => x !== word);
+                updateSelectedUI();
+            };
+            selectedContainer.appendChild(tag);
+        });
     }
+}
 
-    // In a real app, we'd have a UI to select multiple. For now, add all matches (limit 20).
-    const limited = matches.slice(0, 20).map(w => w.word);
-
-    dataManager.addCustomBook(title, limited);
-    alert(`Created book "${title}" with ${limited.length} words.`);
-    renderTab('materials');
+function showAddMaterialUI() {
+    const modal = document.getElementById('custom-book-modal');
+    modal.classList.add('open');
 }
 
 // Bootstrap
