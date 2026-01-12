@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>單字帆船</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="manifest" href="manifest.json">
+</head>
+<body>
+    <div id="app">
+        <!-- Views will be injected here -->
+
+        <!-- Intro View -->
+        <div id="intro-view" class="view active">
+            <div class="sailboat-icon">⛵</div>
+            <h1>單字帆船</h1>
+            <p>啟航你的英語學習之旅</p>
+
+            <div id="auth-forms" class="hidden">
+                 <input type="text" id="intro-nickname" class="nickname-input" placeholder="Enter Nickname (English)" pattern="[A-Za-z0-9]+" />
+                 <input type="password" id="intro-password" class="nickname-input" placeholder="Password" />
+                 <input type="email" id="intro-email" class="nickname-input" placeholder="Email (for Register)" style="display:none"/>
+
+                 <div class="flex-row">
+                     <button id="login-btn" class="btn">Login</button>
+                     <button id="register-btn" class="btn" style="background:#00bcd4; color:white">Register</button>
+                 </div>
+                 <div id="auth-msg" class="mt-20"></div>
+            </div>
+
+            <!-- Loading State -->
+            <div id="loading-state">Loading...</div>
+        </div>
+
+        <!-- Main App Layout (Hidden initially) -->
+        <div id="main-layout" class="view">
+            <!-- Dynamic Content Area -->
+            <div id="main-content" style="flex:1; overflow-y:auto; padding-bottom: 70px;"></div>
+
+            <!-- Tab Bar -->
+            <div class="tab-bar">
+                <div class="tab-item active" data-tab="learn">
+                    <span class="tab-icon">📖</span>
+                    <span>背單字</span>
+                </div>
+                <div class="tab-item" data-tab="materials">
+                    <span class="tab-icon">📚</span>
+                    <span>選擇教材</span>
+                </div>
+                <div class="tab-item" data-tab="profile">
+                    <span class="tab-icon">👤</span>
+                    <span>個人檔案</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Learning View (Overlay) -->
+        <div id="learning-view" class="view" style="z-index: 200;">
+            <!-- Game Content -->
+        </div>
+
+    </div>
+
+    <script type="module" src="js/app.js"></script>
+    <script>
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('./sw.js')
+                .then(() => console.log('SW Registered'));
+        }
+    </script>
+</body>
+</html>
