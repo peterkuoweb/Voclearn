@@ -1,0 +1,129 @@
+const SHEET_ID = ''; // 若留空則抓取當前綁定檔案
+
+function doGet(e) {
+  const action = e.parameter.action;
+  const ss = SHEET_ID ? SpreadsheetApp.openById(SHEET_ID) : SpreadsheetApp.getActiveSpreadsheet();
+  
+  if (action === 'getSettings') {
+    const sheet = ss.getSheetByName('Settings');
+    const data = sheet.getDataRange().getValues();
+    const settings = {};
+    for(let i=1; i<data.length; i++) settings[data[i][0]] = data[i][1];
+    return success(settings);
+  }
+  
+  // Admin 獲取使用者列表
+  if (action === 'getUsers') {
+    const sheet = ss.getSheetByName('Users');
+    const data = sheet.getDataRange().getValues();
+    const users = [];
+    // Skip header
+    for (let i = 1; i < data.length; i++) {
+      users.push({
+        Nickname: data[i][0],
+        Email: data[i][2], // 新增顯示 Email
+        Points: data[i][5],
+        LastLogin: data[i][6]
+      });
+    }
+    return success(users);
+  }
+
+  return error("無效的 GET 請求");
+}
+
+function doPost(e) {
+  try {
+    const ss = SHEET_ID ? SpreadsheetApp.openById(SHEET_ID) : SpreadsheetApp.getActiveSpreadsheet();
+    const json = JSON.parse(e.postData.contents);
+    const action = json.action;
+    const sheet = ss.getSheetByName('Users');
+    const data = sheet.getDataRange().getValues();
+    
+    // 註冊 (Register)
+    if (action === 'register') {
+      const nickname = json.nickname;
+      const password = json.password;
+      const email = json.email; // 新增接收 Email
+      
+      if(!nickname || !password || !email) return error("所有欄位皆為必填");
+
+      // 檢查重複 (帳號或 Email)
+      for(let i=1; i<data.length; i++) {
+        if(String(data[i][0]).toLowerCase() === String(nickname).toLowerCase()) return error("此帳號已被使用");
+        if(String(data[i][2]).toLowerCase() === String(email).toLowerCase()) return error("此 Email 已被註冊");
+      }
+      
+      // 新增使用者: 
+      // [0]Nick, [1]Pass, [2]Email, [3]Learned, [4]Streak, [5]Points, [6]Last, [7]Progress, [8]CustomBooks, [9]CurrentBook
+      const newRow = [nickname, password, email, 0, 1, 0, new Date().toISOString(), "{}", "[]", ""];
+      sheet.appendRow(newRow);
+      return success({ message: "註冊成功" });
+    }
+    
+    // 登入 (Login) - 支援帳號或 Email
+    if (action === 'login') {
+      const inputId = String(json.nickname).toLowerCase(); // 可能是帳號或 Email
+      const password = String(json.password);
+      
+      for(let i=1; i<data.length; i++) {
+        const dbNick = String(data[i][0]).toLowerCase();
+        const dbEmail = String(data[i][2]).toLowerCase();
+        const dbPass = String(data[i][1]);
+
+        // 比對帳號 OR Email
+        if((dbNick === inputId || dbEmail === inputId) && dbPass === password) {
+          return success({
+            nickname: data[i][0],
+            email: data[i][2],
+            totalLearned: data[i][3],
+            streak: data[i][4],
+            points: data[i][5],
+            progress: data[i][7] ? JSON.parse(data[i][7]) : {},
+            customBooks: data[i][8] ? JSON.parse(data[i][8]) : [],
+            currentBook: data[i][9] || null
+          });
+        }
+      }
+      return error("帳號/Email 或密碼錯誤");
+    }
+
+    // 同步資料 (Sync)
+    if (action === 'sync') {
+      const nickname = json.nickname;
+      for(let i=1; i<data.length; i++) {
+        if(String(data[i][0]) === String(nickname)) {
+           // 更新欄位 [3]~[9]
+           // Row i+1, Col 4 (D), 1 row, 7 cols
+           const range = sheet.getRange(i+1, 4, 1, 7); 
+           range.setValues([[
+             json.totalLearned,
+             json.streak,
+             json.points,
+             new Date().toISOString(),
+             JSON.stringify(json.progress),
+             JSON.stringify(json.customBooks),
+             json.currentBook
+           ]]);
+           return success({ status: "synced" });
+        }
+      }
+      return error("無法同步：找不到使用者");
+    }
+    
+    return error("無效的 POST 請求");
+    
+  } catch (err) {
+    return error("系統錯誤: " + err.toString());
+  }
+}
+
+function success(data) {
+  return ContentService.createTextOutput(JSON.stringify(data)).setMimeType(ContentService.MimeType.JSON);
+}
+
+function error(msg) {
+  return ContentService.createTextOutput(JSON.stringify({ error: msg })).setMimeType(ContentService.MimeType.JSON);
+}
+
+
