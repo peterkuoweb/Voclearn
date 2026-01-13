@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>單字帆船</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="manifest" href="manifest.json">
+</head>
+<body>
+    <div id="app">
+        <!-- Views will be injected here -->
+
+        <!-- Intro View -->
+        <div id="intro-view" class="view active">
+            <div class="sailboat-icon">⛵</div>
+            <h1>單字帆船</h1>
+            <p>啟航你的英語學習之旅</p>
+
+            <div id="auth-forms" class="auth-box glass-card hidden">
+                 <input type="text" id="intro-nickname" class="input-field" placeholder="Enter Nickname (English)" pattern="[A-Za-z0-9]+" />
+                 <input type="password" id="intro-password" class="input-field" placeholder="Password" />
+                 <input type="email" id="intro-email" class="input-field" placeholder="Email (for Register)" style="display:none"/>
+
+                 <div class="flex-row">
+                     <button id="login-btn" class="btn">Login</button>
+                     <button id="register-btn" class="btn btn-glass">Register</button>
+                 </div>
+                 <div id="auth-msg" class="mt-20" style="color:var(--sunset-orange); text-align:center;"></div>
+            </div>
+
+            <!-- Loading State -->
+            <div id="loading-state" style="margin-top:20px; color:var(--text-muted);">Loading...</div>
+        </div>
+
+        <!-- Main App Layout (Hidden initially) -->
+        <div id="main-layout" class="view">
+            <!-- Dynamic Content Area -->
+            <div id="main-content" style="flex:1; overflow-y:auto; padding-bottom: 100px;"></div>
+
+            <!-- Tab Bar -->
+            <div class="tab-bar">
+                <div class="tab-item active" data-tab="learn">
+                    <span class="tab-icon">📖</span>
+                </div>
+                <div class="tab-item" data-tab="materials">
+                    <span class="tab-icon">📚</span>
+                </div>
+                <div class="tab-item" data-tab="profile">
+                    <span class="tab-icon">👤</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Learning View (Overlay) -->
+        <div id="learning-view" class="view">
+            <!-- Game Content -->
+        </div>
+
+        <!-- Custom Book Modal -->
+        <div id="custom-book-modal" class="modal-overlay">
+            <div class="modal-card">
+                <div class="modal-header" style="padding:20px; font-weight:bold; border-bottom:1px solid rgba(255,255,255,0.1); text-align:center;">
+                    Add Custom Material
+                </div>
+                <div class="modal-body" style="padding:20px; overflow-y:auto; flex:1;">
+                    <input type="text" id="cb-title" class="input-field w-100" placeholder="Book Title" style="text-align:left; margin-bottom:15px;">
+                    <input type="text" id="cb-search" class="input-field w-100" placeholder="Search Word (e.g., apple)" style="text-align:left; margin-bottom:15px;">
+
+                    <div style="font-size:0.9rem; color:var(--text-muted); margin-bottom:5px;">Selected: <span id="cb-count" style="color:var(--neon-blue);">0</span></div>
+                    <div id="cb-selected-list" style="display:flex; flex-wrap:wrap; margin-bottom:20px; min-height:40px; background:rgba(0,0,0,0.2); padding:10px; border-radius:12px;"></div>
+
+                    <div style="font-size:0.9rem; color:var(--text-muted); margin-bottom:5px;">Search Results:</div>
+                    <div id="cb-results-list" style="display:flex; flex-direction:column;"></div>
+
+                    <button class="btn btn-glass w-100 mt-20" style="font-size:0.8rem;" onclick="window.open('https://forms.gle/Le9oskkQBiupqwET7', '_blank')">Report Missing Word</button>
+                </div>
+                <div class="modal-footer" style="padding:20px; border-top:1px solid rgba(255,255,255,0.1); display:flex; justify-content:space-between;">
+                    <button class="btn btn-red" id="cb-cancel" style="padding:10px 20px;">Cancel</button>
+                    <button class="btn btn-green" id="cb-save" style="padding:10px 20px;">Save</button>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <script type="module" src="js/app.js"></script>
+    <script>
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('./sw.js')
+                .then(() => console.log('SW Registered'));
+        }
+    </script>
+</body>
+</html>
